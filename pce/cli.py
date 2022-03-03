@@ -3,61 +3,100 @@ import os
 from pathlib import Path, PurePath
 import sys
 from tarfile import TarInfo
-from types import SimpleNamespace
+from typing import List
 
-from cryptography.fernet import Fernet
+from pce.archiver import archive, extract
+from pce.compress import compress_file, decompress_file
+from pce.context import DIR_CRYPT, FILE_IGNORE, FILE_TEMP, Context
+from pce.crypto import decrypt_file, encrypt_file
 
-from pce.archiver import archive
-from pce.compress import compress_file
-from pce.crypto import encrypt_file
+_ignored_items = None
 
-
-DIR_CRYPT = '.crypt'
-DIR_WS = 'ws'
-FILE_TEMP = 'temp'
-
-def init(context):
-    # paths
-    dir_ws = Path(context.cwd).joinpath(DIR_CRYPT, DIR_WS)
-    if dir_ws.exists(): raise FileExistsError('this directory is already initialized')
-    dir_ws.mkdir(parents=True)
+def init(context : Context):
+    # TODO make .crypt dir hidden
+    # under .cryptdir
+    #  create ws(workspace) dir
+    #  create pulled dir
+    if context.is_folder_initialized : raise FileExistsError('this directory is already initialized')
+    # will also create .crypt dir
+    context.dir_ws.mkdir(parents=True)
+    context.dir_pulled.mkdir()
     pass
 
+def _init_ignored_items(context : Context) -> List:
+    # gets list of items to ignore from
+    # .cryptignore
+    # TODO put in context?
+    global _ignored_items
+    if _ignored_items == None:
+        _ignored_items = [DIR_CRYPT]
+        ignore_file = PurePath(context.cwd).joinpath(FILE_IGNORE)
+        with open(ignore_file, 'r') as f:
+            for line in f:
+                _ignored_items.append(line.strip())
+    return _ignored_items
+
+
 def _archive_filter(info : TarInfo):
-    excluded_items = [DIR_CRYPT]
-    if not info.name in excluded_items:
+    # gets list of items to ignore from
+    # .cryptignore
+
+    # for now just check the name(last item in path)
+    path = PurePath(info.path)
+    if not path.name in _ignored_items:
         return info
     pass
 
-def prep(context):
-    # paths
-    cwd = PurePath(context.cwd)
-    dir_crypt =  cwd / DIR_CRYPT
+def prep(context : Context):
 
-    if not Path(dir_crypt).exists() : raise FileNotFoundError("please initialize the directory first")
+    if not context.is_folder_initialized : raise FileNotFoundError("please initialize the directory first")
 
-    dir_ws = dir_crypt.joinpath(DIR_WS)
+    # file paths for prep files
+    dir_ws = context.dir_ws
     file_tar = dir_ws.joinpath(FILE_TEMP).with_suffix('.tar')
     file_xz = dir_ws.joinpath(FILE_TEMP).with_suffix('.tar.xz')
     file_crypt = dir_ws.joinpath(FILE_TEMP).with_suffix('.crypt')
 
-    archive(cwd, file_tar, _archive_filter)
+
+    # archive to .tar, 
+    # then compress to .tar.xz
+    # then encrypt to .crypt which will be uploaded to cloud 
+    _init_ignored_items(context)
+    archive(context.cwd, file_tar, _archive_filter)
     compress_file(file_tar, file_xz)
     encrypt_file(file_xz, file_crypt, context.key)
 
     pass
 
-def push(context):
+def push(context : Context):
     pass
 
-def test() -> int:
-    os.chdir('tests/outputs/test_dir')
-    context = SimpleNamespace()
-    context.cwd = os.getcwd()
-    context.key = Fernet.generate_key()
+def pull(context : Context):
+    pass
 
-    #init(context)
+def _decrypt_decompress_extract(context : Context):
+    # test
+    file_crypt = context.dir_ws.joinpath(FILE_TEMP).with_suffix('.crypt')
+    file_xz = context.dir_pulled.joinpath(FILE_TEMP).with_suffix('.tar.xz')
+    file_tar = context.dir_pulled.joinpath(FILE_TEMP).with_suffix('.tar')
+
+    decrypt_file(file_crypt, file_xz, context.key)
+    decompress_file(file_xz, file_tar)
+    extract(file_tar, context.dir_pulled)
+    pass
+
+def generate_context(folder : os.PathLike) -> Context:
+    return Context(folder)
+
+
+def test() -> int:
+    os.chdir('tests/test_dir')
+    context = generate_context(os.getcwd())
+
+    if not context.is_folder_initialized:
+        init(context)
     prep(context)
+    _decrypt_decompress_extract(context)
     
 
 

@@ -9,6 +9,8 @@ from tests.gen_testinputfiles import main
 
 main_parser = argparse.ArgumentParser(description='Encrypts files before pushing to cloud..', add_help=False)
 main_parser.add_argument('init')
+main_parser.add_argument('prep')
+main_parser.add_argument('push')
 
 prep_parser = argparse.ArgumentParser(parents=[main_parser])
 prep_parser.add_argument('--')
