@@ -5,10 +5,10 @@ import sys
 from tarfile import TarInfo
 from typing import List
 
-from pce.archiver import archive, extract
-from pce.compress import compress_file, decompress_file
-from pce.context import DIR_CRYPT, FILE_IGNORE, FILE_TEMP, Context
-from pce.crypto import decrypt_file, encrypt_file
+from cloud_crypt.archiver import archive, extract
+from cloud_crypt.compress import compress_file, decompress_file
+from cloud_crypt.context import DIR_CRYPT, FILE_IGNORE, FILE_TEMP, Context
+from cloud_crypt.crypto import decrypt_file, encrypt_file
 
 _ignored_items = None
 
@@ -30,7 +30,7 @@ def _init_ignored_items(context : Context) -> List:
     global _ignored_items
     if _ignored_items == None:
         _ignored_items = [DIR_CRYPT]
-        ignore_file = PurePath(context.cwd).joinpath(FILE_IGNORE)
+        ignore_file = PurePath(context.dir_client_root).joinpath(FILE_IGNORE)
         with open(ignore_file, 'r') as f:
             for line in f:
                 _ignored_items.append(line.strip())
@@ -62,7 +62,7 @@ def prep(context : Context):
     # then compress to .tar.xz
     # then encrypt to .crypt which will be uploaded to cloud 
     _init_ignored_items(context)
-    archive(context.cwd, file_tar, _archive_filter)
+    archive(context.dir_client_root, file_tar, _archive_filter)
     compress_file(file_tar, file_xz)
     encrypt_file(file_xz, file_crypt, context.key)
 
@@ -90,8 +90,7 @@ def generate_context(folder : os.PathLike) -> Context:
 
 
 def test() -> int:
-    os.chdir('tests/test_dir')
-    context = generate_context(os.getcwd())
+    context = generate_context('tests/test_dir')
 
     if not context.is_folder_initialized:
         init(context)

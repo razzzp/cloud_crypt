@@ -2,4 +2,7 @@ test_dir
 tests/outputs
 __pycache__
 *.tar
+secrets
+credentials
+tokens
 

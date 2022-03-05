@@ -1,5 +1,6 @@
 
 from os import PathLike
+import os
 from pathlib import Path
 from cryptography.fernet import Fernet
 
@@ -11,16 +12,17 @@ FILE_IGNORE = '.cryptignore'
 
 class Context:
 
-    def __init__(self, folder : PathLike) -> None:
+    def __init__(self, client_folder : PathLike) -> None:
 
-        self.cwd = Path(folder)
-        self.dir_crypt = self.cwd / DIR_CRYPT
+        self.dir_app_root = Path(os.getcwd())
+        self.dir_client_root = Path(client_folder)
+        self.dir_crypt = self.dir_client_root / DIR_CRYPT
         self.dir_ws = self.dir_crypt / DIR_WS
         self.dir_pulled = self.dir_crypt / DIR_PULLED
         self.is_folder_initialized = False
         self.key =  Fernet.generate_key()
 
-        if not self.cwd.exists: raise FileNotFoundError('failed to genereate context. directory not found' + self.cwd.absolute)
+        if not self.dir_client_root.exists: raise FileNotFoundError('failed to genereate context. directory not found' + self.dir_client_root.absolute)
 
         self._check_cryptdirs_exist()
         pass
