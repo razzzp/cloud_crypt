@@ -18,9 +18,8 @@ def init(context : Context):
     #  create ws(workspace) dir
     #  create pulled dir
     if context.is_folder_initialized : raise FileExistsError('this directory is already initialized')
-    # will also create .crypt dir
-    context.dir_ws.mkdir(parents=True)
-    context.dir_pulled.mkdir()
+    # initialize folder
+    context.initialize_folders()
     pass
 
 def _init_ignored_items(context : Context) -> List:
