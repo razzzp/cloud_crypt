@@ -13,7 +13,7 @@ from googleapiclient.http import MediaFileUpload
 from cloud_crypt.cli import generate_context
 from cloud_crypt.context import Context
 
-from cloud_crypt.secret_handler import get_credential_filepath, get_token_filepath
+from cloud_crypt.secret_handler import CLOUD_GDRIVE, get_credential_filepath, get_token_filepath
 
 SCOPES = ['https://www.googleapis.com/auth/drive.appdata']
 MIME_GCLOUDFOLDER = 'application/vnd.google-apps.folder'
@@ -28,7 +28,8 @@ def upload(file_path : Path,  context : Context) -> Any:
 
     try:
         service = _build_cloudservice(context)
-        cloudfolder_name = _get_cloudfoldername(context.project_id)
+        # use name for now
+        cloudfolder_name = context.project_id
 
         # checks if folder for project exists, if not create one
         cloudfolder_id = _get_cloudfolderid(cloudfolder_name, service)
@@ -128,14 +129,14 @@ def get_credentials(context : Context) -> Credentials:
     # time.
     creds = None
     # paths to token and credential
-    token_path = get_token_filepath(context)
+    token_path = get_token_filepath(CLOUD_GDRIVE, context)
     cred_path= get_credential_filepath(context)
     if token_path.exists():
         creds = Credentials.from_authorized_user_file(token_path, SCOPES)
     # If there are no (valid) credentials available, let the user log in.
     try:
         if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
+            if creds.expired and creds.refresh_token:
                 creds.refresh(Request())
     except BaseException as e:
             flow = InstalledAppFlow.from_client_secrets_file(

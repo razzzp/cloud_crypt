@@ -13,7 +13,9 @@ def clean():
     service = cloud_handler._build_cloudservice(context)
     listoffiles = cloud_handler._get_appdata_files(service)
     for file in listoffiles:
-        # if file[cloud_handler.GCLOUD_MIMETYPE] == cloud_handler.MIME_GCLOUDFOLDER:
+        #
+        print(file)
+        if file[cloud_handler.GCLOUD_MIMETYPE] == cloud_handler.MIME_GCLOUDFOLDER:
             service.files().delete(
                 fileId = file[cloud_handler.GCLOUD_ID]
             ).execute()

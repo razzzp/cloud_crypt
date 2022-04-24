@@ -6,11 +6,13 @@ import os
 from pathlib import Path
 from cryptography.fernet import Fernet
 from configparser import ConfigParser
+import inspect
 
 DIR_CRYPT = '.crypt'
 DIR_WS = 'ws'
 DIR_PULLED = 'pulled'
 DIR_SECRET= 'secret'
+DIR_TOKENS = 'tokens'
 FILE_TEMP = 'temp'
 FILE_IGNORE = '.cryptignore'
 FILE_CFG = 'crypt.cfg'
@@ -29,6 +31,7 @@ class Context:
     dir_secret : Path
     dir_pulled : Path
     file_cfg : Path
+    dir_tokens : Path
     cfg : ConfigParser
     project_id : str
 
@@ -41,21 +44,22 @@ class Context:
         if not self.dir_client_root.exists() : raise FileNotFoundError('failed to genereate context. directory not found: ' + self.dir_client_root.absolute)
 
         # set path to folders
-        self.dir_app_root = Path(os.getcwd()) # is cwd always app_root? TODO will probly change later
+        self.dir_app_root = Path(inspect.stack()[0][1]).parent.parent 
         self.dir_crypt = self.dir_client_root.joinpath(DIR_CRYPT)
         self.dir_ws = self.dir_crypt.joinpath(DIR_WS)
         self.dir_secret = self.dir_crypt.joinpath(DIR_SECRET)
         self.dir_pulled = self.dir_crypt.joinpath(DIR_PULLED)
         self.file_cfg = self.dir_crypt.joinpath(FILE_CFG)
+        self.dir_tokens = self.dir_crypt.joinpath(DIR_TOKENS)
         
         # checks folders and cfg file
         try:
-            self.is_folder_initialized = self._check_folderinitialised()
-            if not self.is_folder_initialized : return
+            self.is_folder_initialized = self._check_projectinitialised()
         except:
             #case folder/files exists but not correct
             pass
 
+        if not self.is_folder_initialized : return
         self.cfg  = self._get_cfg()
         #self.project_id = self.cfg[CFG_SECTION_GENERAL][CFG_PROJECT_ID]
 
@@ -63,7 +67,7 @@ class Context:
         self.key =  Fernet.generate_key()
         pass
 
-    def _check_folderinitialised(self) -> bool:
+    def _check_projectinitialised(self) -> bool:
         """ Checks if required folder is present. 
             If it is folder is considered initialized"""
 
@@ -89,6 +93,12 @@ class Context:
         cfg_parser.read(self.file_cfg)
         return cfg_parser
 
+    def initialize_project(self):
+        """ Initializes everthing needed for the project"""
+        self.initialize_folders()
+        self.initialize_cfg()
+        self.is_folder_initialized = True
+
     def initialize_folders(self):
         """ Initializes the folder for use"""
         # creates folders needed
@@ -98,8 +108,13 @@ class Context:
         if not self.dir_ws.exists() : self.dir_ws.mkdir()
         if not self.dir_pulled.exists() : self.dir_pulled.mkdir()
         if not self.dir_secret.exists() : self.dir_secret.mkdir()
-        self._generate_cfg()
-        self.is_folder_initialized = True
+        if not self.dir_tokens.exists() : self.dir_tokens.mkdir()
+
+    def initialize_cfg(self):
+        """ Initializes cfg file"""
+        self.cfg = self._generate_cfg(self.project_id)
+        with open(self.file_cfg.absolute(),'w') as cfgfile:
+            self.cfg.write(cfgfile)
 
     def _generate_cfg(self, project_id : str) -> ConfigParser:
         """ Generates crypt.cfg file and returns the parser used to 

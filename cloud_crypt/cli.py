@@ -1,11 +1,13 @@
 
+from datetime import datetime
 import os
 from pathlib import Path, PurePath
 import sys
 from tarfile import TarInfo
 from typing import List
 
-from cloud_crypt.archiver import archive, extract
+from cloud_crypt.archiver import archive, extract_filesunderfolder
+from cloud_crypt.cloud_handler import upload
 from cloud_crypt.compress import compress_file, decompress_file
 from cloud_crypt.context import DIR_CRYPT, FILE_IGNORE, FILE_TEMP, Context
 from cloud_crypt.crypto import decrypt_file, encrypt_file
@@ -18,9 +20,13 @@ def init(context : Context):
     #  create ws(workspace) dir
     #  create pulled dir
     if context.is_folder_initialized : raise FileExistsError('this directory is already initialized')
-    # initialize folder
-    context.initialize_folders()
-    pass
+    try:
+        # initialize folder
+        context.initialize_project()
+    except:
+        # TODO
+        pass
+
 
 def _init_ignored_items(context : Context) -> List:
     # gets list of items to ignore from
@@ -46,15 +52,17 @@ def _archive_filter(info : TarInfo):
         return info
     pass
 
-def prep(context : Context):
+def prep(context : Context) -> Path:
 
     if not context.is_folder_initialized : raise FileNotFoundError("please initialize the directory first")
-
+    # create any missing folders
+    context.initialize_folders()
     # file paths for prep files
+    crypt_filename = _generate_cryptfilename()
     dir_ws = context.dir_ws
-    file_tar = dir_ws.joinpath(FILE_TEMP).with_suffix('.tar')
-    file_xz = dir_ws.joinpath(FILE_TEMP).with_suffix('.tar.xz')
-    file_crypt = dir_ws.joinpath(FILE_TEMP).with_suffix('.crypt')
+    file_tar = dir_ws.joinpath(crypt_filename).with_suffix('.tar')
+    file_xz = dir_ws.joinpath(crypt_filename).with_suffix('.tar.xz')
+    file_crypt = dir_ws.joinpath(crypt_filename).with_suffix('.crypt')
 
 
     # archive to .tar, 
@@ -64,39 +72,69 @@ def prep(context : Context):
     archive(context.dir_client_root, file_tar, _archive_filter)
     compress_file(file_tar, file_xz)
     encrypt_file(file_xz, file_crypt, context.key)
-
+    return file_crypt
     pass
 
+def _generate_cryptfilename() -> str:
+    """ Just name it as current date time for now"""
+    return str(datetime.now().strftime('%Y%m%d%H%M%S'))
+
 def push(context : Context):
+    if not context.is_folder_initialized : raise FileNotFoundError("please initialize the directory first")
+
+    # get newest created crypt file
+    latest = 0
+    latest_file = None
+    for file in context.dir_ws.iterdir():
+        if '.crypt' in file.name:
+            ctime = file.stat().st_ctime_ns
+            if  ctime > latest:
+                latest = ctime
+                latest_file = file
+
+    if latest_file == None : latest_file = prep(context)
+    upload(latest_file, context)
+
     pass
 
 def pull(context : Context):
+    if not context.is_folder_initialized : raise FileNotFoundError("please initialize the directory first")
     pass
 
-def _decrypt_decompress_extract(context : Context):
+def _decrypt_decompress_extract(name : str, context : Context):
     # test
-    file_crypt = context.dir_ws.joinpath(FILE_TEMP).with_suffix('.crypt')
-    file_xz = context.dir_pulled.joinpath(FILE_TEMP).with_suffix('.tar.xz')
-    file_tar = context.dir_pulled.joinpath(FILE_TEMP).with_suffix('.tar')
+    file_crypt = context.dir_ws.joinpath(name).with_suffix('.crypt')
+    file_xz = context.dir_pulled.joinpath(name).with_suffix('.tar.xz')
+    file_tar = context.dir_pulled.joinpath(name).with_suffix('.tar')
+    dir_out = context.dir_pulled.joinpath('out')
+    if not dir_out.exists() : dir_out.mkdir()
 
     decrypt_file(file_crypt, file_xz, context.key)
     decompress_file(file_xz, file_tar)
-    extract(file_tar, context.dir_pulled)
+    extract_filesunderfolder(file_tar, dir_out, 'data')
     pass
 
 def generate_context(folder : os.PathLike) -> Context:
     return Context(folder)
 
-
 def test() -> int:
     context = generate_context('tests/test_dir')
-
+    context.project_id = 'test-project'
     if not context.is_folder_initialized:
         init(context)
+    context.initialize_folders()
     prep(context)
-    _decrypt_decompress_extract(context)
+    latest = 0
+    latest_file= None
+    for file in context.dir_ws.iterdir():
+        if '.crypt' in file.name:
+            ctime = file.stat().st_ctime_ns
+            if  ctime > latest:
+                latest = ctime
+                latest_file = file
+
+    _decrypt_decompress_extract(latest_file.stem, context)
+
     
-
-
 if __name__ == '__main__':
     sys.exit(test())

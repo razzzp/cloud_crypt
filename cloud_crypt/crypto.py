@@ -20,7 +20,7 @@ TOKEN_SIZE = 57 + CHUNK_SIZE # (8+64+128+256)/8 = 57 bytes see below
 def encrypt_file(f_in : PurePath, f_out: PurePath, key : bytes):
 
     f = Fernet(key)
-    print('encrypt')
+    #print('encrypt')
     iter = 0
     with open(f_out, 'wb', buffering= CHUNK_SIZE) as f_cipher :
         with open(f_in, 'rb', buffering= CHUNK_SIZE) as f_clear :
@@ -28,17 +28,17 @@ def encrypt_file(f_in : PurePath, f_out: PurePath, key : bytes):
             while chunk != b'':
                 token = f.encrypt(chunk)
                 f_cipher.write(token)               
-                print(len(chunk))
-                print(len(token))
+                # print(len(chunk))
+                # print(len(token))
                 iter +=1
                 chunk  = f_clear.read1()
-    print(iter)
+    # print(iter)
                 
 
 def decrypt_file(f_in: PurePath, f_out : PurePath, key : bytes):
 
     f = Fernet(key)
-    print('decrypt')
+    #print('decrypt')
     iter = 0
     with open(f_out, 'wb', buffering= TOKEN_SIZE) as f_clear:
         with open(f_in, 'rb', buffering= TOKEN_SIZE) as f_cipher:
@@ -46,12 +46,12 @@ def decrypt_file(f_in: PurePath, f_out : PurePath, key : bytes):
             while chunk != b'':
                 clear = f.decrypt(chunk)
                 f_clear.write(clear)
-                print(len(chunk))
-                print(len(clear))
+                # print(len(chunk))
+                # print(len(clear))
                 iter +=1
                 chunk  = f_cipher.read1()
 
-    print(iter)
+    # print(iter)
 
 def test():
     key = Fernet.generate_key()
