@@ -13,6 +13,7 @@ DIR_WS = 'ws'
 DIR_PULLED = 'pulled'
 DIR_SECRET= 'secret'
 DIR_TOKENS = 'tokens'
+DIR_PREP = 'prep'
 FILE_TEMP = 'temp'
 FILE_IGNORE = '.cryptignore'
 FILE_CFG = 'crypt.cfg'
@@ -30,6 +31,7 @@ class Context:
     dir_ws : Path
     dir_secret : Path
     dir_pulled : Path
+    dir_prep : Path
     file_cfg : Path
     dir_tokens : Path
     cfg : ConfigParser
@@ -51,6 +53,7 @@ class Context:
         self.dir_pulled = self.dir_crypt.joinpath(DIR_PULLED)
         self.file_cfg = self.dir_crypt.joinpath(FILE_CFG)
         self.dir_tokens = self.dir_crypt.joinpath(DIR_TOKENS)
+        self.dir_prep = self.dir_crypt.joinpath(DIR_PREP)
         
         # checks folders and cfg file
         try:
@@ -109,6 +112,7 @@ class Context:
         if not self.dir_pulled.exists() : self.dir_pulled.mkdir()
         if not self.dir_secret.exists() : self.dir_secret.mkdir()
         if not self.dir_tokens.exists() : self.dir_tokens.mkdir()
+        if not self.dir_prep.exists() : self.dir_prep.mkdir()
 
     def initialize_cfg(self):
         """ Initializes cfg file"""

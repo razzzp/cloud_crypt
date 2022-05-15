@@ -1,6 +1,7 @@
 
 from argparse import ArgumentError
 from pathlib import Path
+from pydoc import cli
 import sys
 from typing import Any
 import uuid
@@ -10,7 +11,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
-from cloud_crypt.cli import generate_context
 from cloud_crypt.context import Context
 
 from cloud_crypt.secret_handler import CLOUD_GDRIVE, get_credential_filepath, get_token_filepath
@@ -38,7 +38,7 @@ def upload(file_path : Path,  context : Context) -> Any:
             
         # upload crypt file
         file_metadata = {
-            GCLOUD_NAME: 'temp.crypt',
+            GCLOUD_NAME: file_path.name,
             GCLOUD_PARENTS: [cloudfolder_id]
         }
         file_body = MediaFileUpload(file_path.absolute(),
@@ -55,6 +55,44 @@ def upload(file_path : Path,  context : Context) -> Any:
     except HttpError as error:
         # TODO(developer) - Handle errors from drive API.
         print(f'An error occurred: {error}')
+
+def download(context : Context):
+    try:
+        service = _build_cloudservice(context)
+        cloud_projectfiles = _get_appdata_files_forproject(context.project_id, service)
+        print(cloud_projectfiles)
+
+    except HttpError as error:
+        # TODO(developer) - Handle errors from drive API.
+        print(f'An error occurred: {error}')
+
+
+
+def _get_appdata_files_forproject(project_id : str, service) :
+    cloudfolder_id = _get_cloudfolderid(project_id, service)
+    results = []
+    try:
+        #if service == None : service = _build_cloudservice(context)
+        # query to search .crypt folder
+        next_page_token = None
+        while True:
+            q_results = service.files().list(
+                q = "'{}' in parents".format(cloudfolder_id),
+                spaces='appDataFolder',
+                pageSize=10, 
+                fields="nextPageToken, files(id, name, mimeType, parents)",
+            ).execute()
+            
+            results.extend(q_results.get('files', []))
+            next_page_token  = q_results.get('nextPageToken')
+            # if next page token None, no more items in space
+            if not next_page_token : break
+        return results
+    except HttpError as error:
+        # TODO(developer) - Handle errors from drive API.
+        print(f'An error occurred: {error}')
+        return
+
 
 def _create_cloudfolder(name : str, service) -> str:
     """ Creates folder in cloud with the following id and name
@@ -75,7 +113,7 @@ def _create_cloudfolder(name : str, service) -> str:
 def get_cloudfolderid(folder_name : str, context : Context)-> str:
     """ wrapper for _get_cloudfolderid"""
     service = _build_cloudservice(context)
-    return _get_cloudfolderid(folder_name, context, service)
+    return _get_cloudfolderid(folder_name, service)
 
 def _get_cloudfolderid(folder_name : str, service) -> str:
     """ Gets the id of the given folder name
@@ -148,6 +186,7 @@ def get_credentials(context : Context) -> Credentials:
     return creds
 
 def test():
+    from cloud_crypt.cli import generate_context
     context = generate_context('tests/test_dir')
     context.project_id = 'test1'
     service = _build_cloudservice(context)

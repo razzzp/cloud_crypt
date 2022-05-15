@@ -1,4 +1,4 @@
-test_dir
+.crypt
 tests/outputs
 __pycache__
 *.tar
