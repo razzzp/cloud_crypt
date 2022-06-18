@@ -71,8 +71,10 @@ class Context:
         pass
 
     def _check_projectinitialised(self) -> bool:
-        """ Checks if required folder is present. 
-            If it is folder is considered initialized"""
+        """ 
+        For the folder to be initialized the .crypt folder should be present
+        and the cfg file present with all required values
+        """
 
         result = False
         # if .crypt folder exists and
